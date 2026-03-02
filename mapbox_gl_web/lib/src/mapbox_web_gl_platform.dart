@@ -225,7 +225,7 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
     _map.flyTo(
       {
         'bearing': bearing,
-        'center': [center.lng, center.lat],
+        if (center != null) 'center': [center.lng, center.lat],
         'pitch': pitch,
         'zoom': zoom,
         if (duration != null) 'duration': duration.inMilliseconds,
@@ -724,12 +724,14 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
 
   @override
   Future<List<Point>> toScreenLocationBatch(Iterable<LatLng> latLngs) async {
-    return latLngs.map((latLng) {
-      var screenPosition = _map.project(
-        LngLat(latLng.longitude, latLng.latitude),
-      );
-      return Point(screenPosition.x.round(), screenPosition.y.round());
-    }).toList(growable: false);
+    return latLngs
+        .map((latLng) {
+          var screenPosition = _map.project(
+            LngLat(latLng.longitude, latLng.latitude),
+          );
+          return Point(screenPosition.x.round(), screenPosition.y.round());
+        })
+        .toList(growable: false);
   }
 
   @override
