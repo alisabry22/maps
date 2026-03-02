@@ -28,13 +28,15 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
 
   @override
   Widget buildView(
-      Map<String, dynamic> creationParams,
-      OnPlatformViewCreatedCallback onPlatformViewCreated,
-      Set<Factory<OneSequenceGestureRecognizer>>? gestureRecognizers) {
+    Map<String, dynamic> creationParams,
+    OnPlatformViewCreatedCallback onPlatformViewCreated,
+    Set<Factory<OneSequenceGestureRecognizer>>? gestureRecognizers,
+  ) {
     _creationParams = creationParams;
     _registerViewFactory(onPlatformViewCreated, this.hashCode);
     return HtmlElementView(
-        viewType: 'plugins.flutter.io/mapbox_gl_${this.hashCode}');
+      viewType: 'plugins.flutter.io/mapbox_gl_${this.hashCode}',
+    );
   }
 
   @override
@@ -46,15 +48,17 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
   void _registerViewFactory(Function(int) callback, int identifier) {
     // ignore: undefined_prefixed_name
     ui_web.platformViewRegistry.registerViewFactory(
-        'plugins.flutter.io/mapbox_gl_$identifier', (int viewId) {
-      _mapElement = web.HTMLDivElement()
-        ..style.position = 'absolute'
-        ..style.top = '0'
-        ..style.bottom = '0'
-        ..style.width = '100%';
-      callback(viewId);
-      return _mapElement;
-    });
+      'plugins.flutter.io/mapbox_gl_$identifier',
+      (int viewId) {
+        _mapElement = web.HTMLDivElement()
+          ..style.position = 'absolute'
+          ..style.top = '0'
+          ..style.bottom = '0'
+          ..style.width = '100%';
+        callback(viewId);
+        return _mapElement;
+      },
+    );
   }
 
   @override
@@ -99,16 +103,16 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
 
   void _initResizeObserver() {
     final resizeObserver = web.ResizeObserver(
-        (JSArray<web.ResizeObserverEntry> entries,
-            web.ResizeObserver observer) {
-      // The resize observer might be called a lot of times when the user resizes the browser window with the mouse for example.
-      // Due to the fact that the resize call is quite expensive it should not be called for every triggered event but only the last one, like "onMoveEnd".
-      // But because there is no event type for the end, there is only the option to spawn timers and cancel the previous ones if they get overwritten by a new event.
-      lastResizeObserverTimer?.cancel();
-      lastResizeObserverTimer = Timer(Duration(milliseconds: 50), () {
-        _onMapResize();
-      });
-    }.toJS);
+      (JSArray<web.ResizeObserverEntry> entries, web.ResizeObserver observer) {
+        // The resize observer might be called a lot of times when the user resizes the browser window with the mouse for example.
+        // Due to the fact that the resize call is quite expensive it should not be called for every triggered event but only the last one, like "onMoveEnd".
+        // But because there is no event type for the end, there is only the option to spawn timers and cancel the previous ones if they get overwritten by a new event.
+        lastResizeObserverTimer?.cancel();
+        lastResizeObserverTimer = Timer(Duration(milliseconds: 50), () {
+          _onMapResize();
+        });
+      }.toJS,
+    );
     resizeObserver.observe(web.document.body as web.Element);
   }
 
@@ -129,15 +133,17 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
       _dragOrigin = LatLng(coords.lat as double, coords.lng as double);
 
       if (_draggedFeatureId != null) {
-        final current =
-            LatLng(e.lngLat.lat.toDouble(), e.lngLat.lng.toDouble());
+        final current = LatLng(
+          e.lngLat.lat.toDouble(),
+          e.lngLat.lng.toDouble(),
+        );
         final payload = {
           'id': _draggedFeatureId,
           'point': Point<double>(e.point.x.toDouble(), e.point.y.toDouble()),
           'origin': _dragOrigin,
           'current': current,
           'delta': LatLng(0, 0),
-          'eventType': 'start'
+          'eventType': 'start',
         };
         onFeatureDraggedPlatform(payload);
       }
@@ -153,7 +159,7 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
         'origin': _dragOrigin,
         'current': current,
         'delta': current - (_dragPrevious ?? _dragOrigin!),
-        'eventType': 'end'
+        'eventType': 'end',
       };
       onFeatureDraggedPlatform(payload);
     }
@@ -172,7 +178,7 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
         'origin': _dragOrigin,
         'current': current,
         'delta': current - (_dragPrevious ?? _dragOrigin!),
-        'eventType': 'drag'
+        'eventType': 'drag',
       };
       _dragPrevious = current;
       onFeatureDraggedPlatform(payload);
@@ -196,15 +202,18 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
 
   @override
   Future<CameraPosition?> updateMapOptions(
-      Map<String, dynamic> optionsUpdate) async {
+    Map<String, dynamic> optionsUpdate,
+  ) async {
     // FIX: why is called indefinitely? (map_ui page)
     Convert.interpretMapboxMapOptions(optionsUpdate, this);
     return _getCameraPosition();
   }
 
   @override
-  Future<bool?> animateCamera(CameraUpdate cameraUpdate,
-      {Duration? duration}) async {
+  Future<bool?> animateCamera(
+    CameraUpdate cameraUpdate, {
+    Duration? duration,
+  }) async {
     final cameraOptions = Convert.toCameraOptions(cameraUpdate, _map);
 
     // Accessing properties directly from CameraOptions assuming it is a Dart wrapper from mapbox_gl_dart
@@ -213,13 +222,15 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
     final pitch = cameraOptions.pitch;
     final zoom = cameraOptions.zoom;
 
-    _map.flyTo({
-      'bearing': bearing,
-      'center': center,
-      'pitch': pitch,
-      'zoom': zoom,
-      if (duration != null) 'duration': duration.inMilliseconds,
-    }.jsify());
+    _map.flyTo(
+      {
+        'bearing': bearing,
+        'center': [center.lng, center.lat],
+        'pitch': pitch,
+        'zoom': zoom,
+        if (duration != null) 'duration': duration.inMilliseconds,
+      }.jsify(),
+    );
 
     return true;
   }
@@ -233,7 +244,8 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
 
   @override
   Future<void> updateMyLocationTrackingMode(
-      MyLocationTrackingMode myLocationTrackingMode) async {
+    MyLocationTrackingMode myLocationTrackingMode,
+  ) async {
     setMyLocationTrackingMode(myLocationTrackingMode.index);
   }
 
@@ -244,11 +256,10 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
 
   @override
   Future<void> setMapLanguage(String language) async {
-    _map.setLayoutProperty(
-      'country-label',
-      'text-field',
-      ['get', 'name_' + language],
-    );
+    _map.setLayoutProperty('country-label', 'text-field', [
+      'get',
+      'name_' + language,
+    ]);
   }
 
   @override
@@ -265,7 +276,10 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
 
   @override
   Future<List> queryRenderedFeatures(
-      Point<double> point, List<String> layerIds, List<Object>? filter) async {
+    Point<double> point,
+    List<String> layerIds,
+    List<Object>? filter,
+  ) async {
     Map<String, dynamic> options = {};
     if (layerIds.length > 0) {
       options['layers'] = layerIds;
@@ -276,9 +290,11 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
 
     // avoid issues with the js point type
     final pointAsList = [point.x, point.y];
-    return _map
-        .queryRenderedFeatures([pointAsList, pointAsList], options)
-        .map((feature) => {
+    try {
+      return _map
+          .queryRenderedFeatures([pointAsList, pointAsList], options)
+          .map(
+            (feature) => {
               'type': 'Feature',
               'id': feature.id,
               'geometry': {
@@ -287,13 +303,21 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
               },
               'properties': feature.properties,
               'source': feature.source,
-            })
-        .toList();
+            },
+          )
+          .toList();
+    } catch (e) {
+      print('Mapbox queryRenderedFeatures layer error: $e');
+      return [];
+    }
   }
 
   @override
   Future<List> queryRenderedFeaturesInRect(
-      Rect rect, List<String> layerIds, String? filter) async {
+    Rect rect,
+    List<String> layerIds,
+    String? filter,
+  ) async {
     Map<String, dynamic> options = {};
     if (layerIds.length > 0) {
       options['layers'] = layerIds;
@@ -301,12 +325,14 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
     if (filter != null) {
       options['filter'] = filter;
     }
-    return _map
-        .queryRenderedFeatures([
-          [rect.left, rect.bottom],
-          [rect.right, rect.top],
-        ], options)
-        .map((feature) => {
+    try {
+      return _map
+          .queryRenderedFeatures([
+            [rect.left, rect.bottom],
+            [rect.right, rect.top],
+          ], options)
+          .map(
+            (feature) => {
               'type': 'Feature',
               'id': feature.id,
               'geometry': {
@@ -315,8 +341,13 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
               },
               'properties': feature.properties,
               'source': feature.source,
-            })
-        .toList();
+            },
+          )
+          .toList();
+    } catch (e) {
+      print('Mapbox queryRenderedFeaturesInRect layer error: $e');
+      return [];
+    }
   }
 
   @override
@@ -345,8 +376,11 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
   }
 
   @override
-  Future<void> addImage(String name, Uint8List bytes,
-      [bool sdf = false]) async {
+  Future<void> addImage(
+    String name,
+    Uint8List bytes, [
+    bool sdf = false,
+  ]) async {
     final photo = decodeImage(bytes)!;
     if (!_map.hasImage(name)) {
       _map.addImage(
@@ -363,7 +397,13 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
 
   @override
   Future<void> removeSource(String sourceId) async {
-    _map.removeSource(sourceId);
+    try {
+      if (_map.getSource(sourceId) != null) {
+        _map.removeSource(sourceId);
+      }
+    } catch (e) {
+      print('Mapbox removeSource error: $e');
+    }
   }
 
   CameraPosition? _getCameraPosition() {
@@ -398,8 +438,17 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
   }
 
   void _onMapClick(Event e) {
-    final features = _map.queryRenderedFeatures([e.point.x, e.point.y],
-        {"layers": _interactiveFeatureLayerIds.toList()});
+    List<dynamic> features = [];
+    try {
+      features = _map.queryRenderedFeatures(
+        [e.point.x, e.point.y],
+        {"layers": _interactiveFeatureLayerIds.toList()},
+      );
+    } catch (err) {
+      // Mapbox throws error if querying a layer that doesn't exist in style.
+      print('Mapbox queryRenderedFeatures layer error: $err');
+    }
+
     final payload = {
       'point': Point<double>(e.point.x.toDouble(), e.point.y.toDouble()),
       'latLng': LatLng(e.lngLat.lat.toDouble(), e.lngLat.lng.toDouble()),
@@ -469,7 +518,8 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
     );
     _geolocateControl!.on('geolocate', (e) {
       _myLastLocation = LatLng(e.coords.latitude, e.coords.longitude);
-      onUserLocationUpdatedPlatform(UserLocation(
+      onUserLocationUpdatedPlatform(
+        UserLocation(
           position: LatLng(e.coords.latitude, e.coords.longitude),
           altitude: e.coords.altitude,
           bearing: e.coords.heading,
@@ -477,7 +527,9 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
           horizontalAccuracy: e.coords.accuracy,
           verticalAccuracy: e.coords.altitudeAccuracy,
           heading: null,
-          timestamp: DateTime.fromMillisecondsSinceEpoch(e.timestamp)));
+          timestamp: DateTime.fromMillisecondsSinceEpoch(e.timestamp),
+        ),
+      );
     });
     _geolocateControl!.on('trackuserlocationstart', (_) {
       _onCameraTrackingChanged(true);
@@ -528,11 +580,13 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
     String? newPosition = positionString ?? prevPosition ?? null;
 
     _removeNavigationControl();
-    _navigationControl = NavigationControl(NavigationControlOptions(
-      showCompass: newShowComapss,
-      showZoom: false,
-      visualizePitch: false,
-    ));
+    _navigationControl = NavigationControl(
+      NavigationControlOptions(
+        showCompass: newShowComapss,
+        showZoom: false,
+        visualizePitch: false,
+      ),
+    );
 
     if (newPosition == null) {
       _map.addControl(_navigationControl);
@@ -564,14 +618,8 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
     } else {
       _map.setMaxBounds(
         LngLatBounds(
-          LngLat(
-            bounds.southwest.longitude,
-            bounds.southwest.latitude,
-          ),
-          LngLat(
-            bounds.northeast.longitude,
-            bounds.northeast.latitude,
-          ),
+          LngLat(bounds.southwest.longitude, bounds.southwest.latitude),
+          LngLat(bounds.northeast.longitude, bounds.northeast.latitude),
         ),
       );
     }
@@ -668,24 +716,27 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
 
   @override
   Future<Point> toScreenLocation(LatLng latLng) async {
-    var screenPosition =
-        _map.project(LngLat(latLng.longitude, latLng.latitude));
+    var screenPosition = _map.project(
+      LngLat(latLng.longitude, latLng.latitude),
+    );
     return Point(screenPosition.x.round(), screenPosition.y.round());
   }
 
   @override
   Future<List<Point>> toScreenLocationBatch(Iterable<LatLng> latLngs) async {
     return latLngs.map((latLng) {
-      var screenPosition =
-          _map.project(LngLat(latLng.longitude, latLng.latitude));
+      var screenPosition = _map.project(
+        LngLat(latLng.longitude, latLng.latitude),
+      );
       return Point(screenPosition.x.round(), screenPosition.y.round());
     }).toList(growable: false);
   }
 
   @override
   Future<LatLng> toLatLng(Point screenLocation) async {
-    var lngLat =
-        _map.unproject(mapbox.Point(screenLocation.x, screenLocation.y));
+    var lngLat = _map.unproject(
+      mapbox.Point(screenLocation.x, screenLocation.y),
+    );
     return LatLng(lngLat.lat as double, lngLat.lng as double);
   }
 
@@ -699,9 +750,13 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
 
   @override
   Future<void> removeLayer(String layerId) async {
-    if (_map.getLayer(layerId) != null) {
-      _interactiveFeatureLayerIds.remove(layerId);
-      _map.removeLayer(layerId);
+    try {
+      if (_map.getLayer(layerId) != null) {
+        _interactiveFeatureLayerIds.remove(layerId);
+        _map.removeLayer(layerId);
+      }
+    } catch (e) {
+      print('Mapbox removeLayer error: $e');
     }
   }
 
@@ -715,39 +770,50 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
     final layer = _map.getLayer(layerId);
     if (layer != null) {
       _map.setLayoutProperty(
-          layerId, 'visibility', isVisible ? 'visible' : 'none');
+        layerId,
+        'visibility',
+        isVisible ? 'visible' : 'none',
+      );
     }
   }
 
   @override
-  Future<void> addGeoJsonSource(String sourceId, Map<String, dynamic> geojson,
-      {String? promoteId}) async {
+  Future<void> addGeoJsonSource(
+    String sourceId,
+    Map<String, dynamic> geojson, {
+    String? promoteId,
+  }) async {
     final data = _makeFeatureCollection(geojson);
     _addedFeaturesByLayer[sourceId] = data;
     _map.addSource(sourceId, {
       "type": 'geojson',
       "data": geojson, // pass the raw string here to avoid errors
-      if (promoteId != null) "promoteId": promoteId
+      if (promoteId != null) "promoteId": promoteId,
     });
   }
 
   Feature _makeFeature(Map<String, dynamic> geojsonFeature) {
     return Feature(
-        geometry: Geometry(
-            type: geojsonFeature["geometry"]["type"],
-            coordinates: geojsonFeature["geometry"]["coordinates"]),
-        properties: geojsonFeature["properties"],
-        id: geojsonFeature["properties"]?["id"] ?? geojsonFeature["id"]);
+      geometry: Geometry(
+        type: geojsonFeature["geometry"]["type"],
+        coordinates: geojsonFeature["geometry"]["coordinates"],
+      ),
+      properties: geojsonFeature["properties"],
+      id: geojsonFeature["properties"]?["id"] ?? geojsonFeature["id"],
+    );
   }
 
   FeatureCollection _makeFeatureCollection(Map<String, dynamic> geojson) {
     return FeatureCollection(
-        features: [for (final f in geojson["features"] ?? []) _makeFeature(f)]);
+      features: [for (final f in geojson["features"] ?? []) _makeFeature(f)],
+    );
   }
 
   @override
   Future<void> setGeoJsonSource(
-      String sourceId, Map<String, dynamic> geojson) async {
+    String sourceId,
+    Map<String, dynamic> geojson,
+  ) async {
     final source = _map.getSource(sourceId) as GeoJsonSource;
     final data = _makeFeatureCollection(geojson);
     _addedFeaturesByLayer[sourceId] = data;
@@ -756,165 +822,240 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
 
   @override
   Future<void> addCircleLayer(
-      String sourceId, String layerId, Map<String, dynamic> properties,
-      {String? belowLayerId,
-      String? sourceLayer,
-      double? minzoom,
-      double? maxzoom,
-      dynamic filter,
-      required bool enableInteraction}) async {
-    return _addLayer(sourceId, layerId, properties, "circle",
-        belowLayerId: belowLayerId,
-        sourceLayer: sourceLayer,
-        minzoom: minzoom,
-        maxzoom: maxzoom,
-        filter: filter,
-        enableInteraction: enableInteraction);
+    String sourceId,
+    String layerId,
+    Map<String, dynamic> properties, {
+    String? belowLayerId,
+    String? sourceLayer,
+    double? minzoom,
+    double? maxzoom,
+    dynamic filter,
+    required bool enableInteraction,
+  }) async {
+    return _addLayer(
+      sourceId,
+      layerId,
+      properties,
+      "circle",
+      belowLayerId: belowLayerId,
+      sourceLayer: sourceLayer,
+      minzoom: minzoom,
+      maxzoom: maxzoom,
+      filter: filter,
+      enableInteraction: enableInteraction,
+    );
   }
 
   @override
   Future<void> addFillLayer(
-      String sourceId, String layerId, Map<String, dynamic> properties,
-      {String? belowLayerId,
-      String? sourceLayer,
-      double? minzoom,
-      double? maxzoom,
-      dynamic filter,
-      required bool enableInteraction}) async {
-    return _addLayer(sourceId, layerId, properties, "fill",
-        belowLayerId: belowLayerId,
-        sourceLayer: sourceLayer,
-        minzoom: minzoom,
-        maxzoom: maxzoom,
-        filter: filter,
-        enableInteraction: enableInteraction);
+    String sourceId,
+    String layerId,
+    Map<String, dynamic> properties, {
+    String? belowLayerId,
+    String? sourceLayer,
+    double? minzoom,
+    double? maxzoom,
+    dynamic filter,
+    required bool enableInteraction,
+  }) async {
+    return _addLayer(
+      sourceId,
+      layerId,
+      properties,
+      "fill",
+      belowLayerId: belowLayerId,
+      sourceLayer: sourceLayer,
+      minzoom: minzoom,
+      maxzoom: maxzoom,
+      filter: filter,
+      enableInteraction: enableInteraction,
+    );
   }
 
   @override
   Future<void> addFillExtrusionLayer(
-      String sourceId, String layerId, Map<String, dynamic> properties,
-      {String? belowLayerId,
-      String? sourceLayer,
-      double? minzoom,
-      double? maxzoom,
-      dynamic filter,
-      required bool enableInteraction}) async {
-    return _addLayer(sourceId, layerId, properties, "fill-extrusion",
-        belowLayerId: belowLayerId,
-        sourceLayer: sourceLayer,
-        minzoom: minzoom,
-        maxzoom: maxzoom,
-        filter: filter,
-        enableInteraction: enableInteraction);
+    String sourceId,
+    String layerId,
+    Map<String, dynamic> properties, {
+    String? belowLayerId,
+    String? sourceLayer,
+    double? minzoom,
+    double? maxzoom,
+    dynamic filter,
+    required bool enableInteraction,
+  }) async {
+    return _addLayer(
+      sourceId,
+      layerId,
+      properties,
+      "fill-extrusion",
+      belowLayerId: belowLayerId,
+      sourceLayer: sourceLayer,
+      minzoom: minzoom,
+      maxzoom: maxzoom,
+      filter: filter,
+      enableInteraction: enableInteraction,
+    );
   }
 
   @override
   Future<void> addLineLayer(
-      String sourceId, String layerId, Map<String, dynamic> properties,
-      {String? belowLayerId,
-      String? sourceLayer,
-      double? minzoom,
-      double? maxzoom,
-      dynamic filter,
-      required bool enableInteraction}) async {
-    return _addLayer(sourceId, layerId, properties, "line",
-        belowLayerId: belowLayerId,
-        sourceLayer: sourceLayer,
-        minzoom: minzoom,
-        maxzoom: maxzoom,
-        filter: filter,
-        enableInteraction: enableInteraction);
+    String sourceId,
+    String layerId,
+    Map<String, dynamic> properties, {
+    String? belowLayerId,
+    String? sourceLayer,
+    double? minzoom,
+    double? maxzoom,
+    dynamic filter,
+    required bool enableInteraction,
+  }) async {
+    return _addLayer(
+      sourceId,
+      layerId,
+      properties,
+      "line",
+      belowLayerId: belowLayerId,
+      sourceLayer: sourceLayer,
+      minzoom: minzoom,
+      maxzoom: maxzoom,
+      filter: filter,
+      enableInteraction: enableInteraction,
+    );
   }
 
   @override
   Future<void> addSymbolLayer(
-      String sourceId, String layerId, Map<String, dynamic> properties,
-      {String? belowLayerId,
-      String? sourceLayer,
-      double? minzoom,
-      double? maxzoom,
-      dynamic filter,
-      required bool enableInteraction}) async {
-    return _addLayer(sourceId, layerId, properties, "symbol",
-        belowLayerId: belowLayerId,
-        sourceLayer: sourceLayer,
-        minzoom: minzoom,
-        maxzoom: maxzoom,
-        filter: filter,
-        enableInteraction: enableInteraction);
+    String sourceId,
+    String layerId,
+    Map<String, dynamic> properties, {
+    String? belowLayerId,
+    String? sourceLayer,
+    double? minzoom,
+    double? maxzoom,
+    dynamic filter,
+    required bool enableInteraction,
+  }) async {
+    return _addLayer(
+      sourceId,
+      layerId,
+      properties,
+      "symbol",
+      belowLayerId: belowLayerId,
+      sourceLayer: sourceLayer,
+      minzoom: minzoom,
+      maxzoom: maxzoom,
+      filter: filter,
+      enableInteraction: enableInteraction,
+    );
   }
 
   @override
   Future<void> addHillshadeLayer(
-      String sourceId, String layerId, Map<String, dynamic> properties,
-      {String? belowLayerId,
-      String? sourceLayer,
-      double? minzoom,
-      double? maxzoom}) async {
-    return _addLayer(sourceId, layerId, properties, "hillshade",
-        belowLayerId: belowLayerId,
-        sourceLayer: sourceLayer,
-        minzoom: minzoom,
-        maxzoom: maxzoom,
-        enableInteraction: false);
+    String sourceId,
+    String layerId,
+    Map<String, dynamic> properties, {
+    String? belowLayerId,
+    String? sourceLayer,
+    double? minzoom,
+    double? maxzoom,
+  }) async {
+    return _addLayer(
+      sourceId,
+      layerId,
+      properties,
+      "hillshade",
+      belowLayerId: belowLayerId,
+      sourceLayer: sourceLayer,
+      minzoom: minzoom,
+      maxzoom: maxzoom,
+      enableInteraction: false,
+    );
   }
 
   @override
   Future<void> addHeatmapLayer(
-      String sourceId, String layerId, Map<String, dynamic> properties,
-      {String? belowLayerId,
-      String? sourceLayer,
-      double? minzoom,
-      double? maxzoom}) async {
-    return _addLayer(sourceId, layerId, properties, "heatmap",
-        belowLayerId: belowLayerId,
-        sourceLayer: sourceLayer,
-        minzoom: minzoom,
-        maxzoom: maxzoom,
-        enableInteraction: false);
+    String sourceId,
+    String layerId,
+    Map<String, dynamic> properties, {
+    String? belowLayerId,
+    String? sourceLayer,
+    double? minzoom,
+    double? maxzoom,
+  }) async {
+    return _addLayer(
+      sourceId,
+      layerId,
+      properties,
+      "heatmap",
+      belowLayerId: belowLayerId,
+      sourceLayer: sourceLayer,
+      minzoom: minzoom,
+      maxzoom: maxzoom,
+      enableInteraction: false,
+    );
   }
 
   @override
   Future<void> addRasterLayer(
-      String sourceId, String layerId, Map<String, dynamic> properties,
-      {String? belowLayerId,
-      String? sourceLayer,
-      double? minzoom,
-      double? maxzoom}) async {
-    await _addLayer(sourceId, layerId, properties, "raster",
-        belowLayerId: belowLayerId,
-        sourceLayer: sourceLayer,
-        minzoom: minzoom,
-        maxzoom: maxzoom,
-        enableInteraction: false);
+    String sourceId,
+    String layerId,
+    Map<String, dynamic> properties, {
+    String? belowLayerId,
+    String? sourceLayer,
+    double? minzoom,
+    double? maxzoom,
+  }) async {
+    await _addLayer(
+      sourceId,
+      layerId,
+      properties,
+      "raster",
+      belowLayerId: belowLayerId,
+      sourceLayer: sourceLayer,
+      minzoom: minzoom,
+      maxzoom: maxzoom,
+      enableInteraction: false,
+    );
   }
 
-  Future<void> _addLayer(String sourceId, String layerId,
-      Map<String, dynamic> properties, String layerType,
-      {String? belowLayerId,
-      String? sourceLayer,
-      double? minzoom,
-      double? maxzoom,
-      dynamic filter,
-      required bool enableInteraction}) async {
+  Future<void> _addLayer(
+    String sourceId,
+    String layerId,
+    Map<String, dynamic> properties,
+    String layerType, {
+    String? belowLayerId,
+    String? sourceLayer,
+    double? minzoom,
+    double? maxzoom,
+    dynamic filter,
+    required bool enableInteraction,
+  }) async {
     final layout = Map.fromEntries(
-        properties.entries.where((entry) => isLayoutProperty(entry.key)));
+      properties.entries.where((entry) => isLayoutProperty(entry.key)),
+    );
     final paint = Map.fromEntries(
-        properties.entries.where((entry) => !isLayoutProperty(entry.key)));
+      properties.entries.where((entry) => !isLayoutProperty(entry.key)),
+    );
 
     removeLayer(layerId);
 
-    _map.addLayer({
-      'id': layerId,
-      'type': layerType,
-      'source': sourceId,
-      'layout': layout,
-      'paint': paint,
-      if (sourceLayer != null) 'source-layer': sourceLayer,
-      if (minzoom != null) 'minzoom': minzoom,
-      if (maxzoom != null) 'maxzoom': maxzoom,
-      if (filter != null) 'filter': filter,
-    }, belowLayerId);
+    try {
+      _map.addLayer({
+        'id': layerId,
+        'type': layerType,
+        'source': sourceId,
+        'layout': layout,
+        'paint': paint,
+        if (sourceLayer != null) 'source-layer': sourceLayer,
+        if (minzoom != null) 'minzoom': minzoom,
+        if (maxzoom != null) 'maxzoom': maxzoom,
+        if (filter != null) 'filter': filter,
+      }, belowLayerId);
+    } catch (e) {
+      print('Mapbox _addLayer error adding $layerId: $e');
+      return;
+    }
 
     if (enableInteraction) {
       _interactiveFeatureLayerIds.add(layerId);
@@ -939,12 +1080,13 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
   }
 
   @override
-  void setGestures(
-      {required bool rotateGesturesEnabled,
-      required bool scrollGesturesEnabled,
-      required bool tiltGesturesEnabled,
-      required bool zoomGesturesEnabled,
-      required bool doubleClickZoomEnabled}) {
+  void setGestures({
+    required bool rotateGesturesEnabled,
+    required bool scrollGesturesEnabled,
+    required bool tiltGesturesEnabled,
+    required bool zoomGesturesEnabled,
+    required bool doubleClickZoomEnabled,
+  }) {
     if (rotateGesturesEnabled &&
         scrollGesturesEnabled &&
         tiltGesturesEnabled &&
@@ -994,34 +1136,42 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
 
   @override
   Future<void> addSource(String sourceId, SourceProperties source) async {
-    _map.addSource(sourceId, source.toJson());
+    try {
+      _map.addSource(sourceId, source.toJson());
+    } catch (e) {
+      print('Mapbox addSource error: $e');
+    }
   }
 
   @override
   Future<void> addImageSource(
-      String imageSourceId, Uint8List bytes, LatLngQuad coordinates) async {
+    String imageSourceId,
+    Uint8List bytes,
+    LatLngQuad coordinates,
+  ) async {
     final blob = web.Blob([bytes.toJS].toJS);
     final url = web.URL.createObjectURL(blob);
     _map.addSource(
-        imageSourceId,
-        {
-          'type': 'image',
-          'url': url,
-          'coordinates': [
-            [coordinates.topLeft.longitude, coordinates.topLeft.latitude],
-            [coordinates.topRight.longitude, coordinates.topRight.latitude],
-            [
-              coordinates.bottomRight.longitude,
-              coordinates.bottomRight.latitude
-            ],
-            [coordinates.bottomLeft.longitude, coordinates.bottomLeft.latitude]
-          ]
-        }.jsify());
+      imageSourceId,
+      {
+        'type': 'image',
+        'url': url,
+        'coordinates': [
+          [coordinates.topLeft.longitude, coordinates.topLeft.latitude],
+          [coordinates.topRight.longitude, coordinates.topRight.latitude],
+          [coordinates.bottomRight.longitude, coordinates.bottomRight.latitude],
+          [coordinates.bottomLeft.longitude, coordinates.bottomLeft.latitude],
+        ],
+      }.jsify(),
+    );
   }
 
   @override
   Future<void> updateImageSource(
-      String imageSourceId, Uint8List? bytes, LatLngQuad? coordinates) async {
+    String imageSourceId,
+    Uint8List? bytes,
+    LatLngQuad? coordinates,
+  ) async {
     final source = _map.getSource(imageSourceId);
     if (source == null) return;
 
@@ -1030,16 +1180,14 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
 
     if (coordinates != null) {
       (source as JSObject).callMethod(
-          'setCoordinates'.toJS,
-          [
-            [coordinates.topLeft.longitude, coordinates.topLeft.latitude],
-            [coordinates.topRight.longitude, coordinates.topRight.latitude],
-            [
-              coordinates.bottomRight.longitude,
-              coordinates.bottomRight.latitude
-            ],
-            [coordinates.bottomLeft.longitude, coordinates.bottomLeft.latitude]
-          ].jsify());
+        'setCoordinates'.toJS,
+        [
+          [coordinates.topLeft.longitude, coordinates.topLeft.latitude],
+          [coordinates.topRight.longitude, coordinates.topRight.latitude],
+          [coordinates.bottomRight.longitude, coordinates.bottomRight.latitude],
+          [coordinates.bottomLeft.longitude, coordinates.bottomLeft.latitude],
+        ].jsify(),
+      );
     }
 
     if (bytes != null) {
@@ -1052,39 +1200,53 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
           [coordinates.topLeft.longitude, coordinates.topLeft.latitude],
           [coordinates.topRight.longitude, coordinates.topRight.latitude],
           [coordinates.bottomRight.longitude, coordinates.bottomRight.latitude],
-          [coordinates.bottomLeft.longitude, coordinates.bottomLeft.latitude]
+          [coordinates.bottomLeft.longitude, coordinates.bottomLeft.latitude],
         ];
       }
 
-      (source as JSObject)
-          .callMethod('updateImage'.toJS, updateOptions.jsify());
+      (source as JSObject).callMethod(
+        'updateImage'.toJS,
+        updateOptions.jsify(),
+      );
     }
   }
 
   @override
-  Future<void> addLayer(String imageLayerId, String imageSourceId,
-      double? minzoom, double? maxzoom) async {
-    _map.addLayer({
-      'id': imageLayerId,
-      'type': 'raster',
-      'source': imageSourceId,
-      if (minzoom != null) 'minzoom': minzoom,
-      if (maxzoom != null) 'maxzoom': maxzoom,
-    }.jsify());
+  Future<void> addLayer(
+    String imageLayerId,
+    String imageSourceId,
+    double? minzoom,
+    double? maxzoom,
+  ) async {
+    _map.addLayer(
+      {
+        'id': imageLayerId,
+        'type': 'raster',
+        'source': imageSourceId,
+        if (minzoom != null) 'minzoom': minzoom,
+        if (maxzoom != null) 'maxzoom': maxzoom,
+      }.jsify(),
+    );
   }
 
   @override
-  Future<void> addLayerBelow(String imageLayerId, String imageSourceId,
-      String belowLayerId, double? minzoom, double? maxzoom) async {
+  Future<void> addLayerBelow(
+    String imageLayerId,
+    String imageSourceId,
+    String belowLayerId,
+    double? minzoom,
+    double? maxzoom,
+  ) async {
     _map.addLayer(
-        {
-          'id': imageLayerId,
-          'type': 'raster',
-          'source': imageSourceId,
-          if (minzoom != null) 'minzoom': minzoom,
-          if (maxzoom != null) 'maxzoom': maxzoom,
-        }.jsify(),
-        belowLayerId);
+      {
+        'id': imageLayerId,
+        'type': 'raster',
+        'source': imageSourceId,
+        if (minzoom != null) 'minzoom': minzoom,
+        if (maxzoom != null) 'maxzoom': maxzoom,
+      }.jsify(),
+      belowLayerId,
+    );
   }
 
   @override
@@ -1097,7 +1259,7 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
       'top': insets.top,
       'bottom': insets.bottom,
       'left': insets.left,
-      'right': insets.right
+      'right': insets.right,
     };
     if (animated) {
       (_map as dynamic).easeTo({'padding': padding}.jsify());
@@ -1108,7 +1270,9 @@ class MapboxWebGlPlatform extends MapboxGlPlatform
 
   @override
   Future<void> setFeatureForGeoJsonSource(
-      String sourceId, Map<String, dynamic> geojsonFeature) async {
+    String sourceId,
+    Map<String, dynamic> geojsonFeature,
+  ) async {
     final source = _map.getSource(sourceId) as GeoJsonSource?;
     final data = _addedFeaturesByLayer[sourceId];
 
